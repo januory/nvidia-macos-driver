@@ -11,10 +11,11 @@ gets a real review.
 
 One problem per issue. If you found the cause, say how you know: what you ran and what it printed.
 
-## No AI-written contributions
+## Scope
+All AI agents operating in this fork.
 
-Pull requests, issues and review comments must be written by a person who understands them. AI-written code,
-descriptions and bug reports are closed without review.
+## Rule of thumb
+Stay inside the fork. Never talk to upstream.
 
 ## Pull requests
 

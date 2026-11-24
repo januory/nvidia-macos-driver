@@ -2841,8 +2841,12 @@ static void nvmtl_log_compute_descriptor(MTLComputePipelineDescriptor *d) {
 - (id<MTLRasterizationRateMap>)newRasterizationRateMapWithDescriptor:(MTLRasterizationRateMapDescriptor *)descriptor { return nil; }
 - (BOOL)supportsInt64 { return YES; }
 - (BOOL)isQuadDataSharingSupported { return YES; }
+// A timestamp is written where the app asks for it, on any of the three encoders and on the command buffer
+// itself, so a stage boundary is served by the same write as a draw boundary. Withholding the stage point
+// made UE's Metal RHI report no timestamp render queries at all, leaving its per-pass GPU profiler empty.
 - (BOOL)supportsCounterSampling:(MTLCounterSamplingPoint)p {
-    return p == MTLCounterSamplingPointAtDrawBoundary || p == MTLCounterSamplingPointAtDispatchBoundary || p == MTLCounterSamplingPointAtBlitBoundary;
+    return p == MTLCounterSamplingPointAtDrawBoundary || p == MTLCounterSamplingPointAtDispatchBoundary ||
+           p == MTLCounterSamplingPointAtBlitBoundary || p == MTLCounterSamplingPointAtStageBoundary;
 }
 - (NSArray *)counterSets { return @[nvmtl_timestamp_counter_set()]; }
 - (id<MTLCounterSampleBuffer>)newCounterSampleBufferWithDescriptor:(MTLCounterSampleBufferDescriptor *)desc error:(NSError **)err {

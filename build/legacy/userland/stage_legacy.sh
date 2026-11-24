@@ -17,7 +17,7 @@ for R in ${@:-14 13 12 11 10.15 10.14 10.13 10.12 10.11}; do
   # 1. the plugin, release flags at this floor, MetalFX weak (it does not exist before macOS 13)
   ( cd "$T/plugin" && xcrun clang -arch x86_64 -mmacosx-version-min=$F -bundle -fobjc-arc -O1 -DNVMTL_RELEASE=1 -Wno-protocol \
       -Wno-incomplete-implementation -Wunguarded-availability -ferror-limit=0 -I$M -o "$B/MacOS/NVMTLDriver" NVMTLDevice.m nvmtl_dlss.c dlss/elfhost.c dlss/lnxlibc.c \
-      -framework Foundation -framework Metal -framework IOSurface -framework IOKit -framework CoreFoundation -weak_framework MetalFX -liconv ) > "$L/plugin.err" 2>&1 || st="plugin build failed"
+      -framework Foundation -framework Metal -framework IOSurface -framework IOKit -framework CoreFoundation -framework Security -weak_framework MetalFX -liconv ) > "$L/plugin.err" 2>&1 || st="plugin build failed"
   # 2..6 the pieces built per floor earlier
   cp "$A/nvkfix2-$F/libvulkan_nouveau.dylib" "$N/" 2>/dev/null && strip -S "$N/libvulkan_nouveau.dylib" 2>/dev/null || st="no NVK for $F"
   cp "$A/userland/loader-$F/libvulkan.1.dylib" "$V/vulkan/" 2>/dev/null || st="no loader for $F"

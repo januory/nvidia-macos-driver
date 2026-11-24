@@ -23,6 +23,7 @@ extern char **environ;
 void nvlog(const char *fmt, ...);
 
 #import <CommonCrypto/CommonDigest.h>
+#import <Security/Security.h>
 // The out-of-process AIR decoder: nvmtl-air-dis (plugin/air_dis.c) beside this plugin, built on the same upstream LLVM as the
 // in-process reader (air-runtime/libLLVM.dylib). Earlier packages ran a copy of the Metal toolchain's air-opt from
 // /Library/GPUBundles/nvmtl; that program is not ours to redistribute and is no longer looked for.
@@ -72,7 +73,35 @@ int nvmtl_vk_lost(void);
 static char gXlateTag[NVMTL_SPVCACHE_TAG_MAX] = "untagged";
 // The translator build alone, without the mode suffixes (-u2, -p5, ...) gXlateTag adds: the stale-entry sweep keys on it.
 static char gXlateBuildTag[NVMTL_SPVCACHE_TAG_MAX] = "untagged";
+// The code signature's CDHash names the same bytes a content hash would: the CodeDirectory holds a per-page digest of
+// the whole image, and the CDHash is the digest of that directory. dyld already did this work to load the library, so
+// reading its result is a signature-blob parse instead of a second pass over 15 MB. NO when there is no signature to
+// read, which leaves the caller to hash the content itself.
+static BOOL nvmtl_translator_cdhash(const char *path, char *tag, size_t capacity) {
+    SecStaticCodeRef code = NULL;
+    NSURL *url = [NSURL fileURLWithFileSystemRepresentation:path isDirectory:NO relativeToURL:nil];
+    if (!url || SecStaticCodeCreateWithPath((__bridge CFURLRef)url, kSecCSDefaultFlags, &code) != errSecSuccess || !code) return NO;
+    BOOL ok = NO;
+    CFDictionaryRef info = NULL;
+    if (SecCodeCopySigningInformation(code, kSecCSSigningInformation, &info) == errSecSuccess && info) {
+        NSData *digest = (__bridge NSData *)CFDictionaryGetValue(info, kSecCodeInfoUnique);
+        // A digest shorter than 16 bytes cannot keep two builds apart; anything longer than SHA-256 is not one of ours.
+        if ([digest isKindOfClass:[NSData class]] && digest.length >= 16 && digest.length <= CC_SHA256_DIGEST_LENGTH) {
+            char hex[2 * CC_SHA256_DIGEST_LENGTH + 1];
+            const uint8_t *b = (const uint8_t *)digest.bytes;
+            for (NSUInteger i = 0; i < digest.length; ++i) snprintf(hex + 2*i, 3, "%02x", b[i]);
+            const int k = snprintf(tag, capacity, "cdhash-%s", hex);
+            ok = k > 0 && (size_t)k < capacity;
+        }
+    }
+    if (info) CFRelease(info);
+    CFRelease(code);
+    return ok;
+}
 static void nvmtl_translator_cache_tag(const char *path, char *tag, size_t capacity) {
+    // Hashing the 15 MB translator costs ~45 ms of SHA-256, paid once by every process that translates a shader.
+    // The signature carries the same identity for ~2 ms, so take it and leave the hash as the unsigned fallback.
+    if (nvmtl_translator_cdhash(path, tag, capacity)) return;
     int fd = open(path, O_RDONLY | O_CLOEXEC);
     CC_SHA256_CTX context; CC_SHA256_Init(&context);
     BOOL complete = fd >= 0; uint8_t buffer[65536];

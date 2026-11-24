@@ -7,7 +7,7 @@ for T in ${FLOORS:-15.0 14.0 13.0 12.0 11.0 10.15 10.14 10.13 10.12 10.11}; do
   xcrun clang -arch x86_64 -mmacosx-version-min=$T -bundle -fobjc-arc -O0 -DNVMTL_RELEASE=1 -Wno-protocol \
     -Wno-incomplete-implementation -Wunguarded-availability -ferror-limit=0 -I$M -o "$OUT/NVMTLDriver-$T" \
     NVMTLDevice.m nvmtl_dlss.c dlss/elfhost.c dlss/lnxlibc.c \
-    -framework Foundation -framework Metal -framework IOSurface -framework IOKit -framework CoreFoundation -weak_framework MetalFX -liconv \
+    -framework Foundation -framework Metal -framework IOSurface -framework IOKit -framework CoreFoundation -framework Security -weak_framework MetalFX -liconv \
     > "$OUT/build-$T.err" 2>&1
   rc=$?
   minos=$( [ -f "$OUT/NVMTLDriver-$T" ] && xcrun vtool -show-build "$OUT/NVMTLDriver-$T" 2>/dev/null | awk '/minos/{print $2}')

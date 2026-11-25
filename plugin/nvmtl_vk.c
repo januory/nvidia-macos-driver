@@ -1447,6 +1447,18 @@ static int nvmtl_vk_initialize(void)
     g_occlusion_precise = supported.occlusionQueryPrecise == VK_TRUE;
     enabled.samplerAnisotropy = supported.samplerAnisotropy;
     enabled.imageCubeArray = supported.imageCubeArray;   // texturecube_array storage writes / sampled cube arrays (ImageCubeArray, SampledCubeArray)
+    // A Metal texture's format lives in the bound resource, not in the shader's type, so the translator
+    // declares every storage image with ImageFormat::Unknown and OpCapability StorageImageWriteWithoutFormat
+    // / ReadWithoutFormat (translator/src/native/owned_cfg.rs). Vulkan requires the matching device features
+    // to be ENABLED for a formatless storage image; none of the three ever was, so every storage write in
+    // every app ran outside what was asked for. UE's volumetric fog writes a 160x90x128 RGBA16F texture3d
+    // this way and its channel died with Xid 13 (graphics engine exception, no page fault).
+    enabled.shaderStorageImageWriteWithoutFormat = supported.shaderStorageImageWriteWithoutFormat;
+    enabled.shaderStorageImageReadWithoutFormat = supported.shaderStorageImageReadWithoutFormat;
+    enabled.shaderStorageImageExtendedFormats = supported.shaderStorageImageExtendedFormats;
+    nvlog("vk: formatless storage images: write %d, read %d, extended formats %d (the translator emits Unknown for every storage image)",
+          (int)enabled.shaderStorageImageWriteWithoutFormat, (int)enabled.shaderStorageImageReadWithoutFormat,
+          (int)enabled.shaderStorageImageExtendedFormats);
     // Metal apps read past buffer ends and Apple GPUs tolerate it; on NVK an unchecked load off the end of a
     // mapping is an MMU FAULT_PTE that kills the channel (WoW at the login screen). Bounds-checked buffer and
     // vertex-fetch access turns those reads into zeros instead.
